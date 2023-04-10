@@ -44,9 +44,8 @@ private:
 public:
     // Constructor
     SeparateChaining(unsigned long tableSize, function<string(Keyable)> getKey) {
-        this->tableSize = nextPrime(tableSize);
         // This will fill the table with empty lists
-        table.resize(this->tableSize);
+        table.resize(nextPrime(tableSize));
         this->getKey = getKey;
     }
 
