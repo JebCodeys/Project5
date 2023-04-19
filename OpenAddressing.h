@@ -70,8 +70,7 @@ public:
     // Constructor
     LinearProbing(unsigned long tableSize, function<string(Keyable)> getKey) {
         // This will fill the table with default Keyables and EMPTY statuses
-        this->tableSize = nextPrime(tableSize);
-        table.resize(this->tableSize);
+        table.resize(nextPrime(tableSize));
         this->getKey = getKey;
         numItems = 0;
     }
