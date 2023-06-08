@@ -155,6 +155,11 @@ public:
         }
         cout << "End of table" << endl;
     }
+
+    // Returns the table size
+    unsigned long getTableSize() const {
+        return table.size();
+    }
 };
 
 
