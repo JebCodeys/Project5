@@ -56,8 +56,7 @@ Include the following in this section of your README.md file:
     * Using a line graph to track the *individual* read counts as each insertion is made. High-valued blips happen in open addressing when rehashes occur.
     * Using a line graph to track the *cumulative* read count as each insertion is made. Vertical jumps happen in open addressing when rehashes occur.
     * Using a line graph to track the *average* number of reads per insertion, where each hash table has one value and you can see the trends as the initial table size grows.
-* Using the graphs, analyze how the number of reads change as the hash table size grows.
-  * For the open addressing tables that have to rehash, you may also find it helpful to calculate the average reads excluding the one when the rehash takes place (for fairer comparison with the separate chaining tables).
+* Using the graphs, analyze why the read counts are different for the different size hash tables. Use what you know about your keys and the hash tables to justify why the read counts make sense.
 * Determine which getKey function works best on your dataset based on the read counts.
 * Draw conclusions about which hash collision detection method works best on your dataset (separate chaining or open addressing).
 
