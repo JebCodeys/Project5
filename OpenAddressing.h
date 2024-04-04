@@ -1,23 +1,22 @@
 #ifndef HASHING_OPENADDRESSING_H
 #define HASHING_OPENADDRESSING_H
 
-#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <vector>
-using std::cout, std::endl, std::function, std::nullopt, std::optional, std::string, std::vector;
+using std::cout, std::endl, std::nullopt, std::optional, std::string, std::vector;
 
 template<typename Keyable>
 class LinearProbing {
 private:
     enum state {EMPTY, FILLED, REMOVED};
     struct hashable {
-        Keyable item;
+        string key;
+        Keyable value;
         state status;
     };
     vector<hashable> table;
-    function<string(Keyable)> getKey;
     unsigned long numItems;
 
     unsigned long hornerHash(string key) const {
@@ -60,7 +59,7 @@ private:
         // Reinsert all FILLED items
         for (int i = 0; i < oldTable.size(); ++i) {
             if (oldTable[i].status == FILLED) {
-                insert(oldTable[i].item);
+                insert(oldTable[i].key, oldTable[i].value);
             }
         }
 
@@ -68,17 +67,14 @@ private:
 
 public:
     // Constructor
-    LinearProbing(unsigned long tableSize, function<string(Keyable)> getKey) {
+    LinearProbing(unsigned long tableSize) {
         // This will fill the table with default Keyables and EMPTY statuses
         table.resize(nextPrime(tableSize));
-        this->getKey = getKey;
         numItems = 0;
     }
 
     // Insert
-    void insert(Keyable item) {
-        // Get the key from the item
-        string key = getKey(item);
+    void insert(string key, Keyable value) {
         if (!find(key)) {
             // Hash the key to get an index
             unsigned long index = hornerHash(key);
@@ -88,7 +84,8 @@ public:
                 index += 1;
                 index %= table.size();
             }
-            table[index].item = item;
+            table[index].key = key;
+            table[index].value = value;
             if (table[index].status == EMPTY) {
                 ++numItems;
                 table[index].status = FILLED;
@@ -108,9 +105,9 @@ public:
         unsigned long index = hornerHash(key);
         while (table[index].status != EMPTY) {
             // Check the index to see if the key matches
-            if (table[index].status == FILLED && getKey(table[index].item) == key) {
+            if (table[index].status == FILLED && table[index].key == key) {
                 // We found the item
-                return table[index].item;
+                return table[index].value;
             }
             // Add one to the index for linear probing
             index += 1;
@@ -126,11 +123,12 @@ public:
         unsigned long index = hornerHash(key);
         while (table[index].status != EMPTY) {
             // Check the index to see if the key matches
-            if (table[index].status == FILLED && getKey(table[index].item) == key) {
+            if (table[index].status == FILLED && table[index].key == key) {
                 // We found the item
                 // Remove it
+                table[index].key = string();
+                table[index].value = Keyable();
                 table[index].status = REMOVED;
-                table[index].item = Keyable();
                 return true;
             }
             // Add one to the index for linear probing
@@ -147,7 +145,7 @@ public:
         for (unsigned long i = 0; i < table.size(); ++i) {
             cout << i << ": ";
             if (table[i].status == FILLED) {
-                cout << table[i].item;
+                cout << table[i].value;
             } else if (table[i].status == REMOVED) {
                 cout << "X";
             }
