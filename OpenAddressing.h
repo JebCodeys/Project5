@@ -5,21 +5,26 @@
 #include <optional>
 #include <string>
 #include <vector>
+
 using std::cout, std::endl, std::nullopt, std::optional, std::string, std::vector;
 
 template<typename Keyable>
-class LinearProbing {
+class QuadraticProbing {
 private:
-    enum state {EMPTY, FILLED, REMOVED};
-    struct hashable {
+    enum State { EMPTY, FILLED, REMOVED };
+
+    struct Hashable {
         string key;
         Keyable value;
-        state status;
+        State status = EMPTY;
     };
-    vector<hashable> table;
-    unsigned long numItems;
 
-    unsigned long hornerHash(string key) const {
+    vector<Hashable> table;
+    unsigned long numItems = 0;
+    unsigned long totalCollisions = 0;  // Tracks collisions across the entire table
+
+    // Hash function: Horner's method to compute hash value
+    unsigned long hornerHash(const string& key) const {
         unsigned long hashVal = 0;
         for (char letter : key) {
             hashVal = hashVal * 37 + letter;
@@ -27,138 +32,128 @@ private:
         return hashVal % table.size();
     }
 
-    // Find the next prime number
+    // Get next prime number larger than the current value to resize the table
     int nextPrime(int n) {
-        if (n % 2 == 0) {
-            ++n;
-        }
-        bool prime = false;
-        while (!prime) {
-            prime = true;
+        if (n % 2 == 0) ++n;
+        while (true) {
+            bool isPrime = true;
             for (int i = 3; i * i <= n; i += 2) {
                 if (n % i == 0) {
-                    prime = false;
+                    isPrime = false;
+                    break;
                 }
             }
+            if (isPrime) return n;
             n += 2;
         }
-        return (n-2);
     }
 
+    // Rehashes the table when the load factor exceeds a threshold
     void rehash() {
-        // Store a copy of the hash table
-        vector<hashable> oldTable = table;
-
-        // Empty the table
+        vector<Hashable> oldTable = table;
         table.clear();
         numItems = 0;
+        table.resize(nextPrime(oldTable.size() * 2));  // Resize to next prime size
 
-        // Resize the table to new size
-        table.resize(nextPrime(oldTable.size() * 2));
-
-        // Reinsert all FILLED items
-        for (int i = 0; i < oldTable.size(); ++i) {
-            if (oldTable[i].status == FILLED) {
-                insert(oldTable[i].key, oldTable[i].value);
+        // Rehash existing entries into the new table
+        for (const auto& item : oldTable) {
+            if (item.status == FILLED) {
+                insert(item.key, item.value);  // Re-insert values from the old table
             }
         }
-
     }
 
 public:
-    // Constructor
-    LinearProbing(unsigned long tableSize) {
-        // This will fill the table with default Keyables and EMPTY statuses
+    // Constructor to initialize table size
+    QuadraticProbing(unsigned long tableSize) {
         table.resize(nextPrime(tableSize));
-        numItems = 0;
     }
 
-    // Insert
-    void insert(string key, Keyable value) {
-        if (!find(key)) {
-            // Hash the key to get an index
-            unsigned long index = hornerHash(key);
-            // Probe until we find a non-filled index
-            while (table[index].status == FILLED) {
-                // Add one to the index for linear probing
-                index += 1;
-                index %= table.size();
-            }
-            table[index].key = key;
-            table[index].value = value;
-            if (table[index].status == EMPTY) {
-                ++numItems;
-                table[index].status = FILLED;
-                // Rehash when more than half the table is filled
-                if (numItems > table.size()/2) {
-                    rehash();
-                }
-            } else {
-                table[index].status = FILLED;
-            }
+    // Insert a key-value pair into the table
+    void insert(const string& key, const Keyable& value) {
+        unsigned long index = hornerHash(key);
+        unsigned long step = 1;
+
+        // Check if the slot is already filled and count collisions
+        while (table[index].status == FILLED) {
+            ++totalCollisions;  // Increment collision count
+            cout << "Collision at index " << index << " with key: " << key << endl;  // Debug print for collisions
+            index = (index + step * step) % table.size();  // Quadratic probing step
+            ++step;
+        }
+
+        // Insert the key-value pair at the found empty slot
+        table[index].key = key;
+        table[index].value = value;
+        table[index].status = FILLED;  // Mark slot as filled
+        ++numItems;
+
+        // If load factor exceeds 50%, rehash the table
+        if (numItems > table.size() / 2) {
+            cout << "Rehashing triggered" << endl;  // Debugging print for rehash
+            rehash();
         }
     }
 
-    // Find
-    optional<Keyable> find(string key) const {
-        // Hash the key to get an index
+    // Find the value associated with the given key
+    optional<Keyable> find(const string& key) const {
         unsigned long index = hornerHash(key);
+        unsigned long step = 1;
+
+        // Probe until the key is found or an empty slot is reached
         while (table[index].status != EMPTY) {
-            // Check the index to see if the key matches
             if (table[index].status == FILLED && table[index].key == key) {
-                // We found the item
                 return table[index].value;
             }
-            // Add one to the index for linear probing
-            index += 1;
-            index %= table.size();
+            index = (index + step * step) % table.size();
+            ++step;
         }
-        // We didn't find the item
-        return nullopt;
+        return nullopt;  // Return null if the key is not found
     }
 
-    // Remove
-    bool remove(string key) {
-        // Hash the key to get an index
+    // Remove the key-value pair for the given key
+    bool remove(const string& key) {
         unsigned long index = hornerHash(key);
+        unsigned long step = 1;
+
+        // Probe until the key is found or an empty slot is reached
         while (table[index].status != EMPTY) {
-            // Check the index to see if the key matches
             if (table[index].status == FILLED && table[index].key == key) {
-                // We found the item
-                // Remove it
-                table[index].key = string();
+                table[index].key.clear();
                 table[index].value = Keyable();
                 table[index].status = REMOVED;
                 return true;
             }
-            // Add one to the index for linear probing
-            index += 1;
-            index %= table.size();
+            index = (index + step * step) % table.size();
+            ++step;
         }
-        // We didn't find the item
-        return false;
+        return false;  // Return false if the key was not found
     }
 
-    // Print the table
+    // Print the table contents
     void printTable() const {
-        cout << "Beginning of table" << endl;
+        cout << "Hash Table (Quadratic Probing):" << endl;
         for (unsigned long i = 0; i < table.size(); ++i) {
             cout << i << ": ";
             if (table[i].status == FILLED) {
                 cout << table[i].value;
             } else if (table[i].status == REMOVED) {
-                cout << "X";
+                cout << "X";  // Mark removed slots with "X"
             }
             cout << endl;
         }
-        cout << "End of table" << endl;
+        cout << "Total Collisions: " << totalCollisions << endl;  // Print total collisions
     }
 
-    // Returns the table size
+    // Getter for total collisions
+    unsigned long getTotalCollisions() const {
+        return totalCollisions;
+    }
+
+    // Getter for table size
     unsigned long getTableSize() const {
         return table.size();
     }
 };
-
 
 #endif

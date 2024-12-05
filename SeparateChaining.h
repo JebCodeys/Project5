@@ -15,14 +15,14 @@ private:
         string key;
         Keyable value;
 
-        // Overload == operator
-        friend bool operator == (const pair& left, const pair& right) {
+        friend bool operator==(const pair& left, const pair& right) {
             return left.key == right.key;
         }
     };
     vector<list<pair>> table;
+    unsigned long totalCollisions = 0;
 
-    unsigned long hornerHash(string key) const {
+    unsigned long hornerHash(const string& key) const {
         unsigned long hashVal = 0;
         for (char letter : key) {
             hashVal = hashVal * 37 + letter;
@@ -30,92 +30,87 @@ private:
         return hashVal % table.size();
     }
 
-    // Find the next prime number
-    int nextPrime(int n) {
-        if (n % 2 == 0) {
-            ++n;
-        }
-        bool prime = false;
-        while (!prime) {
-            prime = true;
+    int nextPrime(int n) const {
+        if (n % 2 == 0) ++n;
+        while (true) {
+            bool isPrime = true;
             for (int i = 3; i * i <= n; i += 2) {
                 if (n % i == 0) {
-                    prime = false;
+                    isPrime = false;
+                    break;
                 }
             }
+            if (isPrime) return n;
             n += 2;
         }
-        return (n-2);
     }
 
 public:
-    // Constructor
     SeparateChaining(unsigned long tableSize) {
-        // This will fill the table with empty lists
         table.resize(nextPrime(tableSize));
     }
 
-    // Insert
-    bool insert(string key, Keyable item) {
-        // If the item is already in the table, do not insert it
-        if (!find(key)) {
-            // Hash the key to get an index
-            unsigned long index = hornerHash(key);
-            // Put the item at that index in the table
-            table[index].push_back({key, item});
-            return true;
+    bool insert(const string& key, const Keyable& item) {
+        unsigned long index = hornerHash(key);
+        list<pair>& chain = table[index];
+
+        // Count a collision if the list already has elements
+        if (!chain.empty()) {
+            ++totalCollisions;  // A collision occurred when inserting into a non-empty chain
+            cout << "Collision at index " << index << " with key: " << key << endl;  // Debugging print for collisions
         }
-        return false;
+
+        // Check if the key already exists in the chain to avoid duplicates
+        for (const pair& p : chain) {
+            if (p.key == key) {
+                return false;  // Key already exists, no need to insert again
+            }
+        }
+
+        // Insert the new key-value pair into the chain
+        chain.push_back({key, item});
+        return true;
     }
 
-    // Find
-    optional<Keyable> find(string key) const {
-        // Hash the key to get an index
+
+
+    optional<Keyable> find(const string& key) const {
         unsigned long index = hornerHash(key);
-        // Check each item in the list at the index to see if the key matches
         for (const pair& p : table[index]) {
             if (p.key == key) {
-                // We found the item
                 return p.value;
             }
         }
-        // We didn't find the item
         return nullopt;
     }
 
-    // Remove
-    bool remove(string key) {
-        // Hash the key to get an index
+    bool remove(const string& key) {
         unsigned long index = hornerHash(key);
-        // Check each item in the list at the index to see if the key matches
-        for (pair& p : table[index]) {
-            if (p.key == key) {
-                // We found the item
-                // Remove the item
-                table[index].remove(p);
+        list<pair>& chain = table[index];
+        for (auto it = chain.begin(); it != chain.end(); ++it) {
+            if (it->key == key) {
+                chain.erase(it);
                 return true;
             }
         }
-        // We didn't find the item
         return false;
     }
 
-    // Print the table
     void printTable() const {
-        cout << "Beginning of table" << endl;
+        cout << "Hash Table (Separate Chaining):" << endl;
         for (unsigned long i = 0; i < table.size(); ++i) {
             cout << i << ": ";
             for (const pair& p : table[i]) {
-                if (p == *table[i].begin()) {
-                    cout << p.value;
-                } else {
-                    cout << ", " << p.value;
-                }
+                cout << "(" << p.key << ", " << p.value << ") ";
             }
             cout << endl;
         }
-        cout << "End of table" << endl;
+        cout << "Total Collisions: " << totalCollisions << endl;
+    }
+
+    unsigned long getTotalCollisions() const {
+        return totalCollisions;
     }
 };
 
-#endif
+#endif // HASHING_SEPARATECHAINING_H
